@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%92%A1</text></svg>">
+<title>Connexion</title>
+<style>
+  body{font-family:sans-serif;background:#1a1a18;color:#eee;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
+  form{background:#2a2825;padding:30px;border-radius:10px;width:280px}
+  h2{font-size:20px;margin:0 0 10px}
+  input{width:100%;padding:8px;margin:6px 0;border-radius:6px;border:1px solid #444;background:#1e1c1a;color:#eee;box-sizing:border-box;font-size:16px}
+  button{width:100%;padding:8px;margin-top:10px;border:none;border-radius:6px;background:#e8a33d;cursor:pointer;font-weight:bold;font-size:15px}
+  .switch{text-align:center;margin-top:10px;font-size:13px;cursor:pointer;color:#aaa}
+  .error{color:#f66;font-size:13px;min-height:16px}
+
+  @media (max-width: 480px){
+    body{align-items:flex-start;padding-top:12vh}
+    form{width:min(92vw, 380px);padding:36px 28px}
+    h2{font-size:24px;margin-bottom:16px}
+    input{padding:14px;margin:10px 0;font-size:17px;border-radius:8px}
+    button{padding:14px;font-size:16px;margin-top:16px;border-radius:8px}
+    .switch{font-size:14px;margin-top:16px}
+    .error{font-size:14px}
+  }
+</style>
+</head>
+<body>
+<form id="form">
+  <h2 id="title">Connexion</h2>
+  <input id="identifier" placeholder="Nom d'utilisateur ou email">
+  <input id="email" placeholder="Email" style="display:none">
+  <input id="password" type="password" placeholder="Mot de passe">
+  <div class="error" id="error"></div>
+  <button type="submit" id="submitBtn">Se connecter</button>
+  <div class="switch" id="switch">Pas de compte ? S'inscrire</div>
+</form>
+
+<script>
+let mode = 'login';
+const form = document.getElementById('form');
+const identifier = document.getElementById('identifier');
+const email = document.getElementById('email');
+const password = document.getElementById('password');
+const title = document.getElementById('title');
+const submitBtn = document.getElementById('submitBtn');
+const switchEl = document.getElementById('switch');
+const errorEl = document.getElementById('error');
+
+switchEl.onclick = () => {
+  mode = mode === 'login' ? 'register' : 'login';
+  title.textContent = mode === 'login' ? 'Connexion' : 'Inscription';
+  submitBtn.textContent = mode === 'login' ? 'Se connecter' : "S'inscrire";
+  switchEl.textContent = mode === 'login' ? "Pas de compte ? S'inscrire" : 'Déjà un compte ? Se connecter';
+  identifier.placeholder = mode === 'login' ? "Nom d'utilisateur ou email" : "Nom d'utilisateur";
+  email.style.display = mode === 'register' ? '' : 'none';
+  errorEl.textContent = '';
+};
+
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  errorEl.textContent = '';
+
+  const tokenRes = await fetch('auth.php?action=csrf_token');
+  const { token } = await tokenRes.json();
+
+  const body = mode === 'login'
+    ? { identifier: identifier.value, password: password.value }
+    : { username: identifier.value, email: email.value, password: password.value };
+
+  const res = await fetch(`auth.php?action=${mode}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+
+  if (!res.ok) {
+    errorEl.textContent = data.error || 'Erreur';
+    return;
+  }
+  window.location.href = 'index.php';
+};
+</script>
+</body>
+</html>
