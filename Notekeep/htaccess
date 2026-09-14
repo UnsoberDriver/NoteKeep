@@ -1,0 +1,70 @@
+RewriteEngine On
+
+# --- URL propre pour la page de connexion ---
+RewriteRule ^login/?$ user/login.html [L]
+
+# --- URL propre pour la page d'inscription ---
+RewriteRule ^register/?$ user/login.html [L]
+
+# --- URL propre pour le callback OAuth Google ---
+RewriteRule ^google-oauth/?$ google-oauth.php [L]
+
+# --- Forcer HTTPS (sauf derrière Cloudflare Tunnel) ---
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# --- index.php sert de page d'accueil (URL propre) ---
+DirectoryIndex index.php
+
+# --- Rediriger /index.php vers / (URL propre) ---
+# Important : ne doit matcher QUE l'accès direct sans query string.
+# L'ancienne regex "[?\s]" matchait aussi "?action=...", ce qui cassait
+# tous les appels fetch('index.php?action=...') du frontend (POST convertis
+# en GET vers "/" lors du 301, donc les actions n'atteignaient jamais le PHP).
+RewriteCond %{THE_REQUEST} \s/index\.php\sHTTP [NC]
+RewriteRule ^index\.php$ / [L,R=301]
+
+# --- URL propre pour la page de connexion ---
+RewriteRule ^login/?$ user/login.html [L]
+
+# --- URL propre pour la page d'inscription ---
+RewriteRule ^register/?$ user/login.html [L]
+
+# --- URL propre pour le callback OAuth Google ---
+RewriteRule ^google-oauth/?$ google-oauth.php [L]
+
+# --- Bloquer l'accès direct aux fichiers sensibles ---
+<FilesMatch "\.(sqlite|db|sql|bak|env|ini|log)$">
+    Require all denied
+</FilesMatch>
+
+# --- Empêcher le listing de répertoire si un dossier n'a pas d'index ---
+Options -Indexes
+
+# --- Bloquer l'accès web direct au code PHP interne et aux dépendances ---
+# config/ contient config.php (secrets DB via getenv, mais pas exécuté hors
+# inclusion normale) ; vendor/ contient PHPMailer et ses dépendances : leur
+# exposition directe permet le fingerprinting de versions (recherche de CVE)
+# et, pour config/, l'exécution hors contexte prévu (erreurs, comportements
+# inattendus si appelé seul).
+RewriteRule ^config/ - [F,L]
+RewriteRule ^vendor/ - [F,L]
+
+# --- Cacher les métadonnées de dépendances (fingerprinting de versions) ---
+<FilesMatch "^composer\.(json|lock)$">
+    Require all denied
+</FilesMatch>
+
+# --- Bloquer un éventuel dossier .git exposé par erreur ---
+RewriteRule ^\.git - [F,L]
+
+# --- Headers de sécurité pour les fichiers statiques (login.html, etc.)
+# qui ne passent pas par config.php et n'ont donc pas les headers PHP. ---
+<IfModule mod_headers.c>
+    <FilesMatch "\.html$">
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set X-Frame-Options "DENY"
+        Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    </FilesMatch>
+</IfModule>
